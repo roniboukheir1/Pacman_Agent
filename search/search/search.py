@@ -107,9 +107,45 @@ def nullHeuristic(state, problem=None):
     return 0
 
 def aStarSearch(problem: SearchProblem, heuristic=nullHeuristic):
-    """Search the node that has the lowest combined cost and heuristic first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+
+    from util import PriorityQueue
+
+    # The frontier is a priority queue of nodes to explore.
+    frontier = PriorityQueue()
+    start_state = problem.getStartState()
+    # Each entry in the queue is a tuple: (state, actions, cost_so_far)
+    frontier.push((start_state, [], 0), heuristic(start_state, problem))
+    
+    # visited will store the lowest cost found so far for each state.
+    visited = {}
+
+    while not frontier.isEmpty():
+        current_state, actions, cost_so_far = frontier.pop()
+
+        # If the current state is a goal, return the path (actions) that led to it.
+        if problem.isGoalState(current_state):
+            return actions
+        
+        # If we have already explored this state with a lower cost, skip it.
+        if current_state in visited and visited[current_state] <= cost_so_far:
+            continue
+        
+        # Record the current state's cost.
+        visited[current_state] = cost_so_far
+        
+        # Expand the current node by iterating over its successors.
+        for next_state, action, step_cost in problem.getSuccessors(current_state):
+            new_cost = cost_so_far + step_cost
+            new_actions = actions + [action]
+            # Calculate the priority as the new cost plus the heuristic cost to the goal.
+            priority = new_cost + heuristic(next_state, problem)
+            
+            # Only consider this successor if it has not been visited or we found a better cost.
+            if next_state not in visited or new_cost < visited.get(next_state, float('inf')):
+                frontier.push((next_state, new_actions, new_cost), priority)
+    
+    # If no path is found, return an empty list (or you can also raise an exception).
+    return []
 
 
 # Abbreviations

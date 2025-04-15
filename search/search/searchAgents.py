@@ -430,36 +430,63 @@ class AStarFoodSearchAgent(SearchAgent):
 
 def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     """
-    Your heuristic for the FoodSearchProblem goes here.
-
-    This heuristic must be consistent to ensure correctness.  First, try to come
-    up with an admissible heuristic; almost all admissible heuristics will be
-    consistent as well.
-
-    If using A* ever finds a solution that is worse uniform cost search finds,
-    your heuristic is *not* consistent, and probably not admissible!  On the
-    other hand, inadmissible or inconsistent heuristics may find optimal
-    solutions, so be careful.
-
-    The state is a tuple ( pacmanPosition, foodGrid ) where foodGrid is a Grid
-    (see game.py) of either True or False. You can call foodGrid.asList() to get
-    a list of food coordinates instead.
-
-    If you want access to info like walls, capsules, etc., you can query the
-    problem.  For example, problem.walls gives you a Grid of where the walls
-    are.
-
-    If you want to *store* information to be reused in other calls to the
-    heuristic, there is a dictionary called problem.heuristicInfo that you can
-    use. For example, if you only want to count the walls once and store that
-    value, try: problem.heuristicInfo['wallCount'] = problem.walls.count()
-    Subsequent calls to this heuristic can access
-    problem.heuristicInfo['wallCount']
+    A heuristic for the FoodSearchProblem that combines the Manhattan distance from
+    Pacman's position to the closest food and the cost of a Minimum Spanning Tree (MST)
+    connecting all food dots.
     """
+    from util import manhattanDistance
     position, foodGrid = state
-    "*** YOUR CODE HERE ***"
-    return 0
+    foodList = foodGrid.asList()
 
+    if not foodList:
+        return 0
+
+    # Compute the Manhattan distance to the closest food dot.
+    closestFoodDistance = min(manhattanDistance(position, food) for food in foodList)
+
+    # Create a key for caching based on the remaining food positions.
+    # Sorted tuple ensures that different orderings result in the same key.
+    foodKey = tuple(sorted(foodList))
+    
+    # Check if we already computed the MST cost for this configuration.
+    if foodKey in problem.heuristicInfo:
+        mst_cost = problem.heuristicInfo[foodKey]
+    else:
+        mst_cost = computeMSTCost(foodList, manhattanDistance)
+        problem.heuristicInfo[foodKey] = mst_cost
+
+    return closestFoodDistance + mst_cost
+
+def computeMSTCost(foodList, distanceFunc):
+    """
+    Compute the cost of the minimum spanning tree (MST) connecting all the
+    points in foodList using the provided distance function (e.g., Manhattan distance).
+
+    Uses a simple Prim's algorithm variant.
+    """
+    if not foodList:
+        return 0
+
+    mst_cost = 0
+    unvisited = list(foodList)
+    # Start from an arbitrary point.
+    current = unvisited.pop(0)
+    connected = [current]
+
+    while unvisited:
+        min_edge = float('inf')
+        next_food = None
+        for node in connected:
+            for candidate in unvisited:
+                d = distanceFunc(node, candidate)
+                if d < min_edge:
+                    min_edge = d
+                    next_food = candidate
+        mst_cost += min_edge
+        connected.append(next_food)
+        unvisited.remove(next_food)
+    return mst_cost
+        
 class ClosestDotSearchAgent(SearchAgent):
     "Search for all food using a sequence of searches"
     def registerInitialState(self, state):
